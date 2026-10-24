@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+# no-claude-coauthor: strip AI co-author / "Generated with" lines from commit
+# messages so Claude (or any assistant) never shows up as a GitHub contributor.
+# Installed as a global prepare-commit-msg hook. Chains to any pre-existing hook.
+#
+# Args: $1 = path to commit message file, $2 = source, $3 = commit sha
+set -e
+MSG="$1"
+HERE="$(dirname "$0")"
+
+# 1. Run a pre-existing GLOBAL hook we displaced during install, if any.
+if [ -x "$HERE/prepare-commit-msg.local" ]; then
+    "$HERE/prepare-commit-msg.local" "$@" || exit $?
+fi
+
+# 2. Run the repo's own hook (global core.hooksPath disables it otherwise),
+#    unless that hook is one of ours.
+REPO_HOOK="$(git rev-parse --git-path hooks/prepare-commit-msg 2>/dev/null || true)"
+if [ -n "$REPO_HOOK" ] && [ -x "$REPO_HOOK" ] \
+   && ! grep -q 'no-claude-coauthor' "$REPO_HOOK" 2>/dev/null; then
+    "$REPO_HOOK" "$@" || exit $?
+fi
+
+# 3. Strip AI attribution lines (runs last, so it also cleans anything the
+#    hooks above added). Only AI/Anthropic trailers go; real co-authors stay.
+[ -f "$MSG" ] || exit 0
+TMP="$MSG.ncc.$$"
+grep -ivE \
+  'co-authored-by:.*(claude|anthropic)|generated with .*claude( code)?|🤖[[:space:]]*generated with|noreply@anthropic\.com' \
+  "$MSG" > "$TMP" || true
+
+# collapse trailing blank lines left behind
+awk 'NF{last=NR} {line[NR]=$0} END{for(i=1;i<=last;i++) print line[i]}' \
+  "$TMP" > "$MSG"
+rm -f "$TMP"

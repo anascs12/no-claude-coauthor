@@ -1,0 +1,8 @@
+{
+  "name": "no-claude-coauthor",
+  "version": "1.0.0",
+  "description": "Stop Claude (or any AI assistant) from showing up as a GitHub contributor, by stripping Co-Authored-By and 'Generated with' lines from every commit via a global git hook.",
+  "author": {"name": "Anas Khan"},
+  "license": "MIT",
+  "keywords": ["git", "hook", "co-author", "contributor", "claude-code", "privacy"]
+}
